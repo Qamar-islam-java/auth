@@ -1,12 +1,11 @@
 package com.crescent.auth.model;
 
 import jakarta.persistence.*;
-
-//import javax.persistence.*;
-import java.util.Objects;
+import lombok.Data;
 
 @Entity
 @Table(name = "roles")
+@Data
 public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -15,8 +14,4 @@ public class Role {
     @Enumerated(EnumType.STRING)
     @Column(unique = true)
     private Roles name;
-
-    // Getters, Setters, equals, hashCode
-    public Roles getName() { return name; }
-    public void setName(Roles name) { this.name = name; }
 }
