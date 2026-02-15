@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  auth-service:
+    container_name: auth-service
+    image: openjdk:17
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./target/auth-service-0.0.1-SNAPSHOT.jar:/app.jar
+    command: ["java", "-jar", "/app.jar"]
+    networks:
+      - medical-network
+
+networks:
+  medical-network:
+    driver: bridge
