@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -120,5 +121,78 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    }
+    // --- ADMIN MANAGEMENT ENDPOINTS ---
+
+    // 1. Get All Users (For Admin Dashboard)
+    @GetMapping("/users")
+    public ResponseEntity<List<User>> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        // Clear password from response for security
+        users.forEach(u -> u.setPassword(null));
+        return ResponseEntity.ok(users);
+    }
+
+    // 2. Soft Delete / Toggle Active Status
+    @PutMapping("/users/{id}/status")
+    public ResponseEntity<?> toggleUserStatus(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setActive(!user.isActive()); // Toggle true/false
+        userRepository.save(user);
+
+        return ResponseEntity.ok(new MessageResponse("User status updated to " + (user.isActive() ? "Active" : "Inactive")));
+    }
+
+    // 3. Update User Role
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> roleRequest) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String newRoleStr = roleRequest.get("role");
+        Set<Role> roles = new HashSet<>();
+
+        switch (newRoleStr.toLowerCase()) {
+            case "admin":
+                Role adminRole = roleRepository.findByName(Roles.ROLE_ADMIN)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(adminRole);
+                break;
+            case "doctor":
+                Role docRole = roleRepository.findByName(Roles.ROLE_DOCTOR)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(docRole);
+                break;
+            case "nurse":
+                Role nurseRole = roleRepository.findByName(Roles.ROLE_NURSE)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(nurseRole);
+                break;
+            case "receptionist": // Assuming you might add this role later, or map to EMPLOYEE
+                Role recpRole = roleRepository.findByName(Roles.ROLE_RECEPTIONIST)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(recpRole);
+                break;
+            case "pharmacist": // Assuming you might add this role later, or map to EMPLOYEE
+                Role pharmRole = roleRepository.findByName(Roles.ROLE_PHARMACIST)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                break;
+            case "employee": // Assuming you might add this role later, or map to EMPLOYEE
+                Role empRole = roleRepository.findByName(Roles.ROLE_EMPLOYEE)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(empRole);
+                break;
+            default:
+                Role userRole = roleRepository.findByName(Roles.ROLE_PATIENT)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(userRole);
+        }
+
+        user.setRoles(roles);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(new MessageResponse("User role updated successfully!"));
     }
 }
