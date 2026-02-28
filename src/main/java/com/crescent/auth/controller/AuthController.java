@@ -1,6 +1,5 @@
 package com.crescent.auth.controller;
 
-
 import com.crescent.auth.dto.JwtResponse;
 import com.crescent.auth.dto.LoginRequest;
 import com.crescent.auth.dto.MessageResponse;
@@ -21,11 +20,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 //@CrossOrigin(origins = "*", maxAge = 3600)
@@ -34,6 +32,9 @@ import java.util.stream.Collectors;
 public class AuthController {
     @Autowired
     AuthenticationManager authenticationManager;
+
+    @Autowired
+    RestTemplate restTemplate; // 2. Inject the Bean created in WebSecurityConfig
 
     @Autowired
     UserRepository userRepository;
@@ -76,7 +77,8 @@ public class AuthController {
 
         Set<String> strRoles = signUpRequest.getRole();
         Set<Role> roles = new HashSet<>();
-
+        // Variable to store the detected role string for the Doctor Service check
+        AtomicReference<String> detectedRole = new AtomicReference<>("PATIENT");
         if (strRoles == null) {
             Role userRole = roleRepository.findByName(Roles.ROLE_PATIENT)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
@@ -84,27 +86,29 @@ public class AuthController {
         } else {
             strRoles.forEach(role -> {
                 switch (role) {
-                    case "admin":
+                    case "ROLE_ADMIN":
                         Role adminRole = roleRepository.findByName(Roles.ROLE_ADMIN)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(adminRole);
+                        detectedRole.set("ADMIN");
                         break;
-                    case "doctor":
+                    case "ROLE_DOCTOR":
                         Role docRole = roleRepository.findByName(Roles.ROLE_DOCTOR)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(docRole);
+                        detectedRole.set("DOCTOR");
                         break;
-                    case "employee":
+                    case "ROLE_EMPLOYEE":
                         Role empRole = roleRepository.findByName(Roles.ROLE_EMPLOYEE)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(empRole);
                         break;
-                    case "nurse":
+                    case "ROLE_NURSE":
                         Role nurseRole = roleRepository.findByName(Roles.ROLE_NURSE)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(nurseRole);
                         break;
-                    case "pharmacist":
+                    case "ROLE_PHARMACIST":
                         Role pharmRole = roleRepository.findByName(Roles.ROLE_PHARMACIST)
                                 .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                         roles.add(pharmRole);
@@ -119,7 +123,30 @@ public class AuthController {
 
         user.setRoles(roles);
         userRepository.save(user);
+        // --- NEW: INTEGRATION WITH DOCTOR SERVICE ---
+        if ("DOCTOR".equals(detectedRole.get())) {
+            try {
+                // Prepare payload for Doctor Service
+                // We send Username and Department (which maps to Specialty in Doctor Service)
+                Map<String, String> doctorData = new HashMap<>();
+                doctorData.put("username", user.getUsername());
+                doctorData.put("specialty", signUpRequest.getDepartment());
 
+                // Call Doctor Service directly (Port 8082)
+                String doctorServiceUrl = "http://localhost:8082/api/doctor/internal/register";
+                        //"http://localhost:8091/api/doctor/internal/register";
+
+                // Make the request. We don't care about the response body, just that it doesn't crash.
+               restTemplate.postForObject(doctorServiceUrl, doctorData, ResponseEntity.class);
+                System.out.println("----------------------------");
+            } catch (Exception e) {
+                // Log error but don't fail the whole request if User was created
+                System.err.println("Error creating Doctor Profile: " + e.getMessage());
+                // Optionally:
+                return ResponseEntity.status(500).body("User created, but Doctor profile failed.");
+            }
+        }
+        // ---------------------------------------------
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
     // --- ADMIN MANAGEMENT ENDPOINTS ---
