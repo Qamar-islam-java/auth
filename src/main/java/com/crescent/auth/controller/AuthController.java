@@ -133,7 +133,8 @@ public class AuthController {
                 doctorData.put("specialty", signUpRequest.getDepartment());
 
                 // Call Doctor Service directly (Port 8082)
-                String doctorServiceUrl = "http://localhost:8082/api/doctor/internal/register";
+                String doctorServiceUrl = "http://doctor:8082/api/doctor/internal/register";
+                        //"http://localhost:8082/api/doctor/internal/register";
                         //"http://localhost:8091/api/doctor/internal/register";
 
                 // Make the request. We don't care about the response body, just that it doesn't crash.
